@@ -1,0 +1,167 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.Text.Json;
+using System.Diagnostics;
+using System.Text.Json.Serialization;
+
+namespace AppMenuSharper
+{
+    public partial class Form1 : Form
+    {
+        int imageIndex = 0;
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            this.loadItems();
+            this.AllowDrop = true;
+            this.DragEnter += Form1_DragEnter;
+            this.DragDrop += Form1_DragDrop;
+        }
+        
+        private void loadItems()
+        {
+
+            LauncherItem[] items = JsonSerializer.Deserialize<LauncherItem[]>(JsonDocument.Parse(File.ReadAllText("launcher.json")));
+            Console.WriteLine(items);
+            foreach (LauncherItem item in items)
+            {
+                this.listView1.Items.Add(item.exe_path);
+            }
+            //int i = 0;
+            this.listView1.SmallImageList = this.imageList1;
+            foreach (System.Windows.Forms.ListViewItem item in this.listView1.Items)
+            {
+                try
+                {
+                    // item.Text holds the exe path
+                    this.imageList1.Images.Add(Icon.ExtractAssociatedIcon(item.Text));
+                    this.listView1.SmallImageList.
+                }
+                catch (Exception e)
+                {
+                    continue;
+                }
+                finally
+                {
+                    this.imageIndex++;
+                }
+             }
+        }
+
+        private void Form1_DragEnter(object sender, DragEventArgs e)
+        {
+            Console.WriteLine(sender);
+            Console.WriteLine(e);
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effect = DragDropEffects.Copy;
+            }
+            else
+            {
+                e.Effect = DragDropEffects.None;
+            }
+        }
+
+
+
+        private void Form1_DragDrop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string[] filePaths = (string[])(e.Data.GetData(DataFormats.FileDrop));
+                foreach (string fileLoc in filePaths)
+                {
+                    // Code to read the contents of the text file
+                    if (File.Exists(fileLoc))
+                    {
+                        this.listView1.Items.Add(fileLoc);
+                        this.imageList1.Images.Add(Icon.ExtractAssociatedIcon(fileLoc));
+                    }
+
+                }
+            }
+        }
+
+        private void Form1_FormClosing(Object sender, FormClosingEventArgs evt)
+        {
+            this.saveItems();
+        }
+
+
+        private void saveToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            this.saveItems();
+        }
+
+         class LauncherItem
+        {
+
+            public string exe_path { get; set; }
+            public string title { get; set; }
+            
+            
+
+            public  LauncherItem(string exe_path)
+            {
+                int length = exe_path.LastIndexOf('.') - exe_path.LastIndexOf('\\');
+                string title = exe_path.Substring(exe_path.LastIndexOf('\\')+1, length);
+                //new LauncherItem(exe_path,title);
+                this.title = title;
+                this.exe_path = exe_path;
+            }
+
+            [JsonConstructorAttribute]
+            public LauncherItem(string exe_path,string title)
+            {
+                this.exe_path = exe_path;
+                this.title = title;
+            }
+        }
+
+        private void saveItems()
+        {
+            System.Collections.ArrayList items = new System.Collections.ArrayList();
+            foreach (System.Windows.Forms.ListViewItem item in this.listView1.Items ) {
+                //items.Add(item.Text);
+                string textvalue = item.Text;
+                LauncherItem launcherItem = new LauncherItem(textvalue);
+                items.Add(launcherItem);
+            }
+            String jsonStr = System.Text.Json.JsonSerializer.Serialize(items.ToArray());
+            Console.WriteLine(jsonStr);
+            File.WriteAllText("launcher.json",jsonStr);
+            
+        }
+
+        private void exitToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            this.saveItems();
+            System.Environment.Exit(0);
+        }
+
+        private void listView1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void listView1_DoubleClick(object sender, EventArgs e)
+        {
+            Console.WriteLine(sender + ">" + e);
+
+            Console.WriteLine(this.listView1.FocusedItem.Text);
+            Process.Start(this.listView1.FocusedItem.Text);
+        }
+    }
+}
